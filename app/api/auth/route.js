@@ -1,14 +1,27 @@
-import {NextResponse} from 'next/server';import {randomBytes} from 'crypto';import bcrypt from 'bcryptjs';import {sql} from '@/lib/db';import {setSession} from '@/lib/auth';
+import {NextResponse} from 'next/server';import {randomBytes,randomInt,createHash,timingSafeEqual} from 'crypto';import bcrypt from 'bcryptjs';import {sql} from '@/lib/db';import {setSession} from '@/lib/auth';import {mailer} from '@/lib/mail';
 const bad=m=>NextResponse.json({error:m},{status:400});
+const hash=(e,c)=>createHash('sha256').update(process.env.JWT_SECRET+'|'+e+'|'+c).digest('hex');
 export async function POST(req){const b=await req.json();const email=String(b.email||'').toLowerCase().trim();const pw=String(b.password||'');
 if(!email||pw.length<8)return bad('Enter a valid email and a password of 8 or more characters.');
 const A=(process.env.ADMIN_EMAIL||'').toLowerCase();
 if(email===A){if(b.action==='login'&&process.env.ADMIN_PASSWORD&&pw===process.env.ADMIN_PASSWORD){await setSession({uid:0,iid:null,role:'superadmin',name:'Admin'});return NextResponse.json({ok:true})}return bad('Wrong email or password.')}
 if(b.action==='login'){const [u]=await sql`select * from users where email=${email}`;if(!u||!(await bcrypt.compare(pw,u.password_hash)))return bad('Wrong email or password.');await setSession({uid:u.id,iid:u.institution_id,role:u.role,name:u.name});return NextResponse.json({ok:true})}
-if(b.action==='register'){if(!b.agree||!b.institution||!b.name||!['school','college','university'].includes(b.type))return bad('Fill all fields and accept the terms.');
-const [x]=await sql`select 1 from users where email=${email}`;if(x)return bad('This email is already registered.');
-const [i]=await sql`insert into institutions(name,type,code) values(${b.institution},${b.type},${randomBytes(4).toString('hex')}) returning id`;
-const role=email===(process.env.ADMIN_EMAIL||'').toLowerCase()?'superadmin':'principal';
-const [u]=await sql`insert into users(institution_id,name,email,password_hash,role) values(${i.id},${b.name},${email},${await bcrypt.hash(pw,10)},${role}) returning id`;
-await setSession({uid:u.id,iid:i.id,role,name:b.name});return NextResponse.json({ok:true})}
+if(b.action==='register'){
+if(!b.agree||!b.institution||!b.name||!['school','college','university'].includes(b.type))return bad('Fill all fields and accept the terms.');
+const [x]=await sql`select 1 from users where email=${email}`;if(x)return bad('This email is already registered. Please log in.');
+const [o]=await sql`select 1 from email_otps where email=${email} and sent_at>now()-interval '60 seconds'`;if(o)return bad('Please wait a minute before asking for a new code.');
+const code=String(randomInt(100000,1000000));
+const data={institution:String(b.institution).slice(0,120),type:b.type,name:String(b.name).slice(0,120),ph:await bcrypt.hash(pw,10)};
+await sql`insert into email_otps(email,code_hash,data,sent_at,expires_at,tries) values(${email},${hash(email,code)},${JSON.stringify(data)}::jsonb,now(),now()+interval '10 minutes',0) on conflict(email) do update set code_hash=excluded.code_hash,data=excluded.data,sent_at=now(),expires_at=excluded.expires_at,tries=0`;
+try{await mailer().sendMail({from:`AttendX AI <${process.env.GMAIL_USER}>`,to:email,subject:'Your AttendX AI verification code',text:`Your verification code is ${code}. It works for 10 minutes. If you did not ask for it, ignore this email.`})}catch{await sql`delete from email_otps where email=${email}`;return bad('Could not send the email. Please try again later.')}
+return NextResponse.json({ok:true,verify:true})}
+if(b.action==='verify'){
+const [o]=await sql`select * from email_otps where email=${email}`;if(!o||new Date(o.expires_at)<new Date())return bad('The code expired. Go back and ask for a new one.');
+if(o.tries>=5){await sql`delete from email_otps where email=${email}`;return bad('Too many wrong tries. Ask for a new code.')}
+const a=Buffer.from(hash(email,String(b.otp||'').trim())),c=Buffer.from(o.code_hash);
+if(a.length!==c.length||!timingSafeEqual(a,c)){await sql`update email_otps set tries=tries+1 where email=${email}`;return bad('Wrong code. Try again.')}
+const d=o.data;const [x]=await sql`select 1 from users where email=${email}`;if(x)return bad('This email is already registered. Please log in.');
+const [i]=await sql`insert into institutions(name,type,code) values(${d.institution},${d.type},${randomBytes(4).toString('hex')}) returning id`;
+const [u]=await sql`insert into users(institution_id,name,email,password_hash,role) values(${i.id},${d.name},${email},${d.ph},'principal') returning id`;
+await sql`delete from email_otps where email=${email}`;await setSession({uid:u.id,iid:i.id,role:'principal',name:d.name});return NextResponse.json({ok:true})}
 return bad('Unknown action.')}
