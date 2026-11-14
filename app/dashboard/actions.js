@@ -1,4 +1,4 @@
-'use server';import {sql} from '@/lib/db';import {getSession} from '@/lib/auth';import {revalidatePath} from 'next/cache';import {redirect} from 'next/navigation';
+'use server';import {sql} from '@/lib/db';import {getSession} from '@/lib/auth';import {revalidatePath} from 'next/cache';
 async function ok(){const s=await getSession();if(!s)throw new Error('auth');const [i]=await sql`select 1 from institutions where id=${s.iid} and (trial_ends>now() or plan_ends>now())`;if(!i)throw new Error('expired');return s}
 export async function addStudent(f){const s=await ok();await sql`insert into students(institution_id,student_code,name,class_name) values(${s.iid},${f.get('code')},${f.get('name')},${f.get('cls')}) on conflict do nothing`;revalidatePath('/dashboard')}
 export async function mark(f){const s=await ok();const st=f.get('status')==='absent'?'absent':'present';await sql`insert into attendance(student_id,status) select id,${st}::text from students where id=${+f.get('id')} and institution_id=${s.iid} on conflict(student_id,day) do update set status=excluded.status`;revalidatePath('/dashboard')}
@@ -7,7 +7,3 @@ export async function confirmAttendance(ids){const s=await ok();const a=ids.map(
 export async function addSlot(f){const s=await ok();await sql`insert into timetable(institution_id,day,subject,class_name,start_time,end_time,room,teacher_email) values(${s.iid},${+f.get('day')},${f.get('subject')},${f.get('cls')},${f.get('start')},${f.get('end')},${f.get('room')},${f.get('temail')})`;revalidatePath('/dashboard/timetable')}
 export async function delSlot(f){const s=await ok();await sql`delete from timetable where id=${+f.get('id')} and institution_id=${s.iid}`;revalidatePath('/dashboard/timetable')}
 export async function resetFace(id){const s=await ok();await sql`update students set face=null,face_consent=false where id=${+id} and institution_id=${s.iid}`;revalidatePath('/dashboard/camera')}
-export async function updateStudent(f){const s=await ok();const id=+f.get('id'),code=String(f.get('code')||'').trim(),name=String(f.get('name')||'').trim();if(!code||!name)return;
-const [d]=await sql`select 1 from students where institution_id=${s.iid} and student_code=${code} and id<>${id}`;if(d)redirect('/dashboard?e=dup');
-await sql`update students set student_code=${code},name=${name},class_name=${f.get('cls')} where id=${id} and institution_id=${s.iid}`;revalidatePath('/dashboard')}
-export async function delStudent(f){const s=await ok();await sql`delete from students where id=${+f.get('id')} and institution_id=${s.iid}`;revalidatePath('/dashboard')}

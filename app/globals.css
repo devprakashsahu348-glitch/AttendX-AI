@@ -15,5 +15,3 @@ table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:8px;bord
 footer{border-top:1px solid var(--line);margin-top:60px;padding:24px 0;color:var(--mut);font-size:14px}
 .cc{position:fixed;bottom:0;left:0;right:0;background:var(--ink);color:#fff;padding:12px 20px;display:flex;gap:16px;align-items:center;justify-content:space-between;z-index:9}.cc a{color:#fff}
 @media print{nav,footer,.cc,.btn,form{display:none!important}}
-.spin{width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .7s linear infinite;display:inline-block}@keyframes sp{to{transform:rotate(360deg)}}
-@media(prefers-reduced-motion:reduce){.spin{animation-duration:2.5s}}
