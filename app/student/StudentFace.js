@@ -7,6 +7,7 @@ function snap(){const c=document.createElement('canvas');c.width=v.current.video
 async function go(e){e.preventDefault();if(!file)return setMsg('Take or choose a clear photo of your face first.');setBusy(true);setMsg('Reading your face. This can take a few seconds.');
 try{const f=await load();const i=new Image();i.src=URL.createObjectURL(file);await i.decode();const d=await f.detectAllFaces(i).withFaceLandmarks().withFaceDescriptors();
 if(d.length!==1){setMsg(d.length?'Only you should be in the photo. Faces found: '+d.length+'.':'No face found. Use good light and face the camera.');return}
+if(d[0].detection.score<0.8||d[0].detection.box.width<100){setMsg('Your face is too small or unclear. Move closer, face the camera in good light, and try again.');return}
 const r=await fetch('/api/student-face',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,sid,agree,desc:Array.from(d[0].descriptor)})});const j=await r.json();
 if(j.ok){setDone(true);setMsg('')}else setMsg(j.error||'Could not save.')}catch(x){setMsg(x.message||'Something went wrong.')}finally{setBusy(false)}}
 if(done)return <div className="card" style={{maxWidth:460,margin:'40px auto'}}><h2>Face registered</h2><p>Your face is saved for attendance. You can close this page.</p></div>;
