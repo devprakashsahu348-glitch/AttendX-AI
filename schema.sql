@@ -1,0 +1,15 @@
+create table if not exists institutions(id serial primary key,name text not null,type text not null check(type in('school','college','university')),trial_ends timestamptz not null default now()+interval '30 days',plan text,plan_ends timestamptz,created_at timestamptz default now());
+create table if not exists users(id serial primary key,institution_id int references institutions(id) on delete cascade,name text not null,email text unique not null,password_hash text not null,role text not null default 'principal',created_at timestamptz default now());
+create table if not exists students(id serial primary key,institution_id int references institutions(id) on delete cascade,student_code text not null,name text not null,class_name text,unique(institution_id,student_code));
+create table if not exists attendance(id serial primary key,student_id int references students(id) on delete cascade,day date not null default current_date,status text not null default 'present',unique(student_id,day));
+alter table students add column if not exists face jsonb;
+alter table students add column if not exists face_consent boolean default false;
+create table if not exists timetable(id serial primary key,institution_id int references institutions(id) on delete cascade,day int not null,subject text not null,class_name text,start_time time not null,end_time time not null,room text);
+alter table timetable add column if not exists teacher_email text;
+create table if not exists sent_log(key text primary key,at timestamptz default now());
+create table if not exists push_subs(id serial primary key,institution_id int references institutions(id) on delete cascade,endpoint text unique not null,sub jsonb not null);
+alter table institutions add column if not exists code text unique;
+update institutions set code=substr(md5(random()::text||id::text),1,8) where code is null;
+create table if not exists email_otps(email text primary key,code_hash text not null,data jsonb not null,sent_at timestamptz not null default now(),expires_at timestamptz not null,tries int not null default 0);
+create table if not exists login_attempts(id serial primary key,key text not null,at timestamptz not null default now());
+create index if not exists login_attempts_key on login_attempts(key,at);

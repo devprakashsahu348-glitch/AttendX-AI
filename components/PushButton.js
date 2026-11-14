@@ -1,0 +1,5 @@
+'use client';import {useState} from 'react';import {Bell} from 'lucide-react';
+const key=k=>{const b=(k+'='.repeat((4-k.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/');return Uint8Array.from([...atob(b)].map(c=>c.charCodeAt(0)))};
+export default function P(){const [m,setM]=useState('');
+async function on(){try{if(!('serviceWorker' in navigator)||!('PushManager' in window))return setM('This browser does not support notifications.');const reg=await navigator.serviceWorker.register('/sw.js');if(await Notification.requestPermission()!=='granted')return setM('Notifications are blocked in this browser.');const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY)});const r=await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sub)});setM(r.ok?'Notifications are on for this device.':'Could not save. Log in again.')}catch{setM('Could not turn on notifications.')}}
+return <><button className="btn o" onClick={on}><Bell size={16}/> Turn on notifications</button>{m&&<span>{m}</span>}</>}

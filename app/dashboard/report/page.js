@@ -1,0 +1,7 @@
+import {redirect} from 'next/navigation';import {getSession} from '@/lib/auth';import {report} from '@/lib/report';import PrintButton from '@/components/PrintButton';
+export const dynamic='force-dynamic';
+export default async function R({searchParams}){const s=await getSession();if(!s||!s.iid)redirect('/login');
+const m=/^\d{4}-\d{2}$/.test(searchParams.month||'')?searchParams.month:new Date().toISOString().slice(0,7);const rows=await report(s.iid,m);
+return(<main className="w"><h1>Monthly report</h1><form style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}><input type="month" name="month" defaultValue={m} style={{width:'auto',margin:0}}/><button className="btn">Show</button><a className="btn o" href={`/api/report?month=${m}`}>Download CSV (Excel)</a><PrintButton/></form>
+<div className="card" style={{marginTop:16,overflowX:'auto'}}><table><thead><tr><th>ID</th><th>Name</th><th>Class</th><th>Total</th><th>Present</th><th>Absent</th><th>Percentage</th></tr></thead><tbody>{rows.map(r=>(<tr key={r.student_code}><td>{r.student_code}</td><td>{r.name}</td><td>{r.class_name}</td><td>{r.total}</td><td>{r.present}</td><td>{r.absent}</td><td style={{color:r.pct!==null&&r.pct<75?'var(--r)':'inherit',fontWeight:r.pct!==null&&r.pct<75?700:400}}>{r.pct===null?'-':r.pct+'%'}</td></tr>))}</tbody></table>{!rows.length&&<p>No students yet.</p>}</div>
+<p>Percentage counts only the days attendance was marked. Students below 75% are highlighted.</p></main>)}

@@ -1,0 +1,2 @@
+import {PLANS} from '@/lib/plans';import {Check} from 'lucide-react';
+export default function PlanTable(){return(<div className="grid">{PLANS.map(p=>(<div key={p.id} className="card"><h3>{p.name}</h3><p style={{fontSize:30,margin:'4px 0',fontWeight:700}}>&#8377;{p.price.toLocaleString('en-IN')}<small style={{fontSize:14,fontWeight:400}}> / month</small></p>{p.items.map(i=><p key={i} style={{margin:'4px 0'}}><Check size={16} color="#2e7d4f"/> {i}</p>)}</div>))}</div>)}

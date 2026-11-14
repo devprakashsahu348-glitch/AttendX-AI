@@ -1,0 +1,4 @@
+import './globals.css';import Link from 'next/link';import {Mail} from 'lucide-react';import Nav from '@/components/Nav';import CookieBanner from '@/components/CookieBanner';
+export const metadata={title:'AttendX AI - Smart Attendance Management',description:'Attendance, Automated. Education, Simplified.'};
+const E=process.env.NEXT_PUBLIC_CONTACT_EMAIL;
+export default function L({children}){return(<html lang="en"><body><Nav/>{children}<footer><div className="w"><p>&copy; {new Date().getFullYear()} Dev Prakash Sahu. All rights reserved.</p><p><Link href="/legal/privacy">Privacy Policy</Link> | <Link href="/legal/terms">Terms &amp; Conditions</Link> | <Link href="/legal/cookies">Cookie Policy</Link> | <a href={`mailto:${E}`}><Mail size={14}/> {E}</a></p></div></footer><CookieBanner/></body></html>)}
